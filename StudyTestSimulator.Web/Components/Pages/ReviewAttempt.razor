@@ -1,0 +1,169 @@
+@page "/review-attempt/{AttemptId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using StudyTestSimulator.Web.Services
+@using StudyTestSimulator.Web.Models
+@inject ITestService TestService
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+
+<PageTitle>Review Test Attempt</PageTitle>
+
+<div class="container mt-4">
+    @if (attempt == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Review Test Attempt</h1>
+            <button class="btn btn-secondary" @onclick="GoBack">
+                <i class="bi bi-arrow-left"></i> Back to History
+            </button>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">@attempt.TestCategory.Name</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Date:</strong> @attempt.StartTime.ToLocalTime().ToString("g")
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Score:</strong> 
+                        <span class="badge @GetScoreBadgeClass(attempt.PercentageScore) fs-6">
+                            @attempt.PercentageScore.ToString("F1")%
+                        </span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Correct:</strong> @attempt.CorrectAnswers / @attempt.TotalQuestions
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Duration:</strong> @GetDuration()
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @foreach (var taq in attempt.TestAttemptQuestions.OrderBy(q => q.QuestionOrder))
+        {
+            <div class="card mb-3">
+                <div class="card-header @(taq.IsCorrect == true ? "bg-success" : "bg-danger") text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            Question @(taq.QuestionOrder + 1)
+                            @if (taq.IsCorrect == true)
+                            {
+                                <i class="bi bi-check-circle-fill"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-x-circle-fill"></i>
+                            }
+                        </h5>
+                        <span class="badge bg-light text-dark">
+                            Time: @(taq.TimeSpentSeconds ?? 0)s
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h5>@taq.Question.QuestionText</h5>
+                    
+                    @if (!string.IsNullOrEmpty(taq.Question.ImageBase64))
+                    {
+                        <div class="mb-3">
+                            <img src="@taq.Question.ImageBase64" class="img-fluid" style="max-width: 500px;" alt="Question image" />
+                        </div>
+                    }
+
+                    <div class="list-group mb-3">
+                        @foreach (var answer in taq.Question.Answers.OrderBy(a => a.DisplayOrder))
+                        {
+                            var isSelected = taq.SelectedAnswerId == answer.Id;
+                            var isCorrect = answer.IsCorrect;
+                            var cssClass = isCorrect ? "list-group-item-success" : (isSelected ? "list-group-item-danger" : "");
+                            
+                            <div class="list-group-item @cssClass">
+                                @if (isSelected && !isCorrect)
+                                {
+                                    <i class="bi bi-x-circle-fill text-danger"></i>
+                                }
+                                @if (isCorrect)
+                                {
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                }
+                                @if (isSelected && !isCorrect)
+                                {
+                                    <strong class="text-danger">Your answer: </strong>
+                                }
+                                @if (isCorrect)
+                                {
+                                    <strong class="text-success">Correct answer: </strong>
+                                }
+                                <span>@answer.AnswerText</span>
+                                
+                                @if (!string.IsNullOrEmpty(answer.Explanation) && (isSelected || isCorrect))
+                                {
+                                    <p class="mb-0 mt-2 small"><em>@answer.Explanation</em></p>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(taq.Question.Explanation))
+                    {
+                        <div class="alert alert-info">
+                            <strong>Explanation:</strong> @taq.Question.Explanation
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="text-center mt-4 mb-4">
+            <button class="btn btn-primary" @onclick="GoBack">
+                <i class="bi bi-arrow-left"></i> Back to History
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int AttemptId { get; set; }
+
+    private TestAttempt? attempt;
+
+    protected override async Task OnInitializedAsync()
+    {
+        attempt = await TestService.GetTestAttemptDetailsAsync(AttemptId);
+    }
+
+    private string GetScoreBadgeClass(decimal score)
+    {
+        if (score >= 90) return "bg-success";
+        if (score >= 70) return "bg-primary";
+        if (score >= 50) return "bg-warning";
+        return "bg-danger";
+    }
+
+    private string GetDuration()
+    {
+        if (attempt?.EndTime == null) return "In Progress";
+        
+        var duration = attempt.EndTime.Value - attempt.StartTime;
+        if (duration.TotalMinutes < 1)
+            return $"{duration.Seconds}s";
+        else if (duration.TotalHours < 1)
+            return $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
+        else
+            return $"{(int)duration.TotalHours}h {duration.Minutes}m";
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/test-history");
+    }
+}

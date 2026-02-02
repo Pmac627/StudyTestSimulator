@@ -1,0 +1,142 @@
+@page "/flagged-questions"
+@using Microsoft.AspNetCore.Authorization
+@using StudyTestSimulator.Web.Services
+@using StudyTestSimulator.Web.Models
+@inject IQuestionService QuestionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+
+<PageTitle>Flagged Questions</PageTitle>
+
+<div class="container mt-4">
+    <h1 class="mb-4">Flagged Questions</h1>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="showResolved" @bind="showResolved" @bind:after="LoadFlags">
+                <label class="form-check-label" for="showResolved">
+                    Show resolved flags
+                </label>
+            </div>
+        </div>
+    </div>
+
+    @if (flags == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (!flags.Any())
+    {
+        <div class="alert alert-info">
+            @if (showResolved)
+            {
+                <text>No flagged questions found.</text>
+            }
+            else
+            {
+                <text>No unresolved flagged questions. Great job keeping things clean!</text>
+            }
+        </div>
+    }
+    else
+    {
+        @foreach (var flag in flags)
+        {
+            <div class="card mb-3 @(flag.IsResolved ? "border-success" : "border-warning")">
+                <div class="card-header @(flag.IsResolved ? "bg-success" : "bg-warning") @(flag.IsResolved ? "text-white" : "")">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            @flag.Question.TestCategory.Name - Question #@flag.QuestionId
+                            @if (flag.IsResolved)
+                            {
+                                <span class="badge bg-light text-success ms-2">Resolved</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-warning ms-2">Needs Review</span>
+                            }
+                        </h5>
+                        <small>Flagged: @flag.FlaggedDate.ToLocalTime().ToString("g")</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h6>Question:</h6>
+                    <p>@flag.Question.QuestionText</p>
+
+                    @if (!string.IsNullOrEmpty(flag.Question.ImageBase64))
+                    {
+                        <div class="mb-3">
+                            <img src="@flag.Question.ImageBase64" class="img-fluid" style="max-width: 400px;" alt="Question image" />
+                        </div>
+                    }
+
+                    <h6>Answers:</h6>
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach (var answer in flag.Question.Answers.OrderBy(a => a.DisplayOrder))
+                        {
+                            <li class="list-group-item @(answer.IsCorrect ? "list-group-item-success" : "")">
+                                @answer.AnswerText
+                                @if (answer.IsCorrect)
+                                {
+                                    <i class="bi bi-check-circle text-success float-end"></i>
+                                }
+                            </li>
+                        }
+                    </ul>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Flagged by:</strong> @flag.FlaggedBy (@flag.FlaggedByEmail)</p>
+                            @if (!string.IsNullOrEmpty(flag.Comments))
+                            {
+                                <p><strong>Comments:</strong> @flag.Comments</p>
+                            }
+                        </div>
+                        @if (flag.IsResolved)
+                        {
+                            <div class="col-md-6">
+                                <p><strong>Resolved by:</strong> @flag.ResolvedBy</p>
+                                <p><strong>Resolved on:</strong> @flag.ResolvedDate?.ToLocalTime().ToString("g")</p>
+                            </div>
+                        }
+                    </div>
+
+                    @if (!flag.IsResolved)
+                    {
+                        <div class="mt-3">
+                            <button class="btn btn-success" @onclick="() => ResolveFlag(flag.Id)">
+                                <i class="bi bi-check-circle"></i> Mark as Resolved
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<QuestionFlag>? flags;
+    private bool showResolved = false;
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.Identity?.Name ?? string.Empty;
+
+        await LoadFlags();
+    }
+
+    private async Task LoadFlags()
+    {
+        flags = await QuestionService.GetFlaggedQuestionsAsync(showResolved);
+    }
+
+    private async Task ResolveFlag(int flagId)
+    {
+        await QuestionService.ResolveFlagAsync(flagId, userId);
+        await LoadFlags();
+    }
+}

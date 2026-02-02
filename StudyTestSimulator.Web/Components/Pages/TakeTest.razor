@@ -1,0 +1,442 @@
+@page "/take-test"
+@using Microsoft.AspNetCore.Authorization
+@using StudyTestSimulator.Web.Services
+@using StudyTestSimulator.Web.Models
+@inject ICategoryService CategoryService
+@inject ITestService TestService
+@inject IQuestionService QuestionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@implements IDisposable
+@attribute [Authorize]
+
+<PageTitle>Take Test</PageTitle>
+
+<div class="container mt-4">
+    @if (currentAttempt == null)
+    {
+        <h1 class="mb-4">Select a Test Category</h1>
+        
+        @if (categories == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else if (!categories.Any())
+        {
+            <div class="alert alert-warning">
+                No test categories available. Please create a category and add questions first.
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                @foreach (var category in categories)
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">@category.Name</h5>
+                                <p class="card-text">@(category.Description ?? "No description")</p>
+                                <p class="text-muted small">
+                                    <i class="bi bi-question-circle"></i> @questionCounts.GetValueOrDefault(category.Id, 0) questions
+                                </p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <button class="btn btn-primary w-100" @onclick="() => StartTest(category.Id)" disabled="@(questionCounts.GetValueOrDefault(category.Id, 0) == 0)">
+                                    <i class="bi bi-play-circle"></i> Start Test
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else if (showSummary)
+    {
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h2 class="mb-0">Test Complete!</h2>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-4">
+                        <div class="display-4 text-primary">@currentAttempt.PercentageScore.ToString("F1")%</div>
+                        <p class="text-muted">Score</p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="display-4 text-success">@currentAttempt.CorrectAnswers / @currentAttempt.TotalQuestions</div>
+                        <p class="text-muted">Correct Answers</p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="display-4 text-info">@GetTestDuration()</div>
+                        <p class="text-muted">Total Time</p>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h4>Questions Summary</h4>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Result</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var taq in currentAttempt.TestAttemptQuestions.OrderBy(q => q.QuestionOrder))
+                            {
+                                <tr>
+                                    <td>@(taq.QuestionOrder + 1)</td>
+                                    <td>
+                                        @if (taq.IsCorrect == true)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Correct</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Incorrect</span>
+                                        }
+                                    </td>
+                                    <td>@(taq.TimeSpentSeconds ?? 0)s</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <button class="btn btn-primary me-2" @onclick="ReviewAnswers">
+                        <i class="bi bi-eye"></i> Review Answers
+                    </button>
+                    <button class="btn btn-success" @onclick="TakeAgain">
+                        <i class="bi bi-arrow-clockwise"></i> Take Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        var currentQuestion = GetCurrentQuestion();
+        if (currentQuestion != null)
+        {
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            Question @(currentQuestionIndex + 1) of @currentAttempt.TotalQuestions
+                        </h5>
+                        <div>
+                            <span class="badge bg-primary me-2">
+                                <i class="bi bi-stopwatch"></i> Session: @sessionTime
+                            </span>
+                            <span class="badge bg-info">
+                                <i class="bi bi-clock"></i> Question: @questionTime
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress mt-2" style="height: 5px;">
+                        <div class="progress-bar" style="width: @(((currentQuestionIndex + 1) * 100.0 / currentAttempt.TotalQuestions))%"></div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h4 class="mb-4">@currentQuestion.Question.QuestionText</h4>
+                    
+                    @if (!string.IsNullOrEmpty(currentQuestion.Question.ImageBase64))
+                    {
+                        <div class="mb-4">
+                            <img src="@currentQuestion.Question.ImageBase64" class="img-fluid" style="max-width: 600px;" alt="Question image" />
+                        </div>
+                    }
+
+                    <div class="list-group mb-4">
+                        @foreach (var answer in currentQuestion.Question.Answers.OrderBy(a => a.DisplayOrder))
+                        {
+                            <label class="list-group-item list-group-item-action @GetAnswerClass(answer.Id)">
+                                <input type="radio" 
+                                       name="answer" 
+                                       value="@answer.Id" 
+                                       checked="@(selectedAnswerId == answer.Id)"
+                                       @onclick="() => SelectAnswer(answer.Id)"
+                                       disabled="@answerChecked" />
+                                <span class="ms-2">@answer.AnswerText</span>
+                                @if (answerChecked && answer.IsCorrect)
+                                {
+                                    <i class="bi bi-check-circle-fill text-success float-end"></i>
+                                }
+                                @if (answerChecked && selectedAnswerId == answer.Id && !answer.IsCorrect)
+                                {
+                                    <i class="bi bi-x-circle-fill text-danger float-end"></i>
+                                }
+                            </label>
+                        }
+                    </div>
+
+                    @if (answerChecked && !string.IsNullOrEmpty(feedbackMessage))
+                    {
+                        <div class="alert @(isCorrectAnswer ? "alert-success" : "alert-danger")">
+                            <strong>@feedbackMessage</strong>
+                            @if (!string.IsNullOrEmpty(currentQuestion.Question.Explanation))
+                            {
+                                <p class="mb-0 mt-2">@currentQuestion.Question.Explanation</p>
+                            }
+                            @if (!isCorrectAnswer)
+                            {
+                                var correctAnswer = currentQuestion.Question.Answers.FirstOrDefault(a => a.IsCorrect);
+                                if (correctAnswer != null && !string.IsNullOrEmpty(correctAnswer.Explanation))
+                                {
+                                    <p class="mb-0 mt-2"><strong>Correct answer explanation:</strong> @correctAnswer.Explanation</p>
+                                }
+                            }
+                        </div>
+                    }
+
+                    <div class="mt-4 d-flex justify-content-between">
+                        <div>
+                            <button class="btn btn-warning me-2" @onclick="FlagQuestion">
+                                <i class="bi bi-flag"></i> Flag Question
+                            </button>
+                        </div>
+                        <div>
+                            @if (!answerChecked)
+                            {
+                                <button class="btn btn-info me-2" @onclick="CheckAnswer" disabled="@(!selectedAnswerId.HasValue)">
+                                    <i class="bi bi-check-square"></i> Check Answer
+                                </button>
+                            }
+                            <button class="btn btn-primary" @onclick="SubmitAndNext">
+                                @(currentQuestionIndex < currentAttempt.TotalQuestions - 1 ? "Submit & Next" : "Finish Test")
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@if (showFlagModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Flag Question for Review</h5>
+                    <button type="button" class="btn-close" @onclick="() => showFlagModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Comments (optional)</label>
+                        <textarea class="form-control" rows="3" @bind="flagComments"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => showFlagModal = false">Cancel</button>
+                    <button type="button" class="btn btn-warning" @onclick="SubmitFlag">Submit Flag</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TestCategory>? categories;
+    private Dictionary<int, int> questionCounts = new();
+    private TestAttempt? currentAttempt;
+    private int currentQuestionIndex = 0;
+    private int? selectedAnswerId;
+    private bool answerChecked = false;
+    private bool isCorrectAnswer = false;
+    private string? feedbackMessage;
+    private bool showSummary = false;
+    private bool showFlagModal = false;
+    private string? flagComments;
+    
+    private string userId = string.Empty;
+    private string userEmail = string.Empty;
+    
+    private System.Threading.Timer? sessionTimer;
+    private System.Threading.Timer? questionTimer;
+    private int sessionSeconds = 0;
+    private int questionSeconds = 0;
+    private string sessionTime = "00:00";
+    private string questionTime = "00:00";
+    private DateTime questionStartTime;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.Identity?.Name ?? string.Empty;
+        userEmail = authState.User.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value ?? string.Empty;
+
+        // Check for active test
+        currentAttempt = await TestService.GetActiveTestAsync(userId);
+        
+        if (currentAttempt == null)
+        {
+            categories = await CategoryService.GetAllCategoriesAsync();
+            foreach (var category in categories)
+            {
+                questionCounts[category.Id] = await CategoryService.GetQuestionCountAsync(category.Id);
+            }
+        }
+        else
+        {
+            // Resume test
+            currentQuestionIndex = currentAttempt.TestAttemptQuestions
+                .OrderBy(q => q.QuestionOrder)
+                .TakeWhile(q => q.SelectedAnswerId.HasValue)
+                .Count();
+            
+            StartTimers();
+        }
+    }
+
+    private async Task StartTest(int categoryId)
+    {
+        currentAttempt = await TestService.StartTestAsync(categoryId, userId, userEmail);
+        currentQuestionIndex = 0;
+        StartTimers();
+    }
+
+    private void StartTimers()
+    {
+        questionStartTime = DateTime.UtcNow;
+        sessionTimer = new System.Threading.Timer(_ =>
+        {
+            sessionSeconds++;
+            sessionTime = TimeSpan.FromSeconds(sessionSeconds).ToString(@"mm\:ss");
+            InvokeAsync(StateHasChanged);
+        }, null, 1000, 1000);
+
+        questionTimer = new System.Threading.Timer(_ =>
+        {
+            questionSeconds++;
+            questionTime = TimeSpan.FromSeconds(questionSeconds).ToString(@"mm\:ss");
+            InvokeAsync(StateHasChanged);
+        }, null, 1000, 1000);
+    }
+
+    private void ResetQuestionTimer()
+    {
+        questionSeconds = 0;
+        questionTime = "00:00";
+        questionStartTime = DateTime.UtcNow;
+    }
+
+    private TestAttemptQuestion? GetCurrentQuestion()
+    {
+        return currentAttempt?.TestAttemptQuestions
+            .OrderBy(q => q.QuestionOrder)
+            .ElementAtOrDefault(currentQuestionIndex);
+    }
+
+    private void SelectAnswer(int answerId)
+    {
+        if (!answerChecked)
+        {
+            selectedAnswerId = answerId;
+        }
+    }
+
+    private async Task CheckAnswer()
+    {
+        if (!selectedAnswerId.HasValue) return;
+
+        isCorrectAnswer = await TestService.CheckAnswerAsync(GetCurrentQuestion()!.QuestionId, selectedAnswerId.Value);
+        answerChecked = true;
+        feedbackMessage = isCorrectAnswer ? "Correct!" : "Incorrect.";
+    }
+
+    private async Task SubmitAndNext()
+    {
+        if (selectedAnswerId.HasValue)
+        {
+            await TestService.SubmitAnswerAsync(
+                currentAttempt!.Id,
+                GetCurrentQuestion()!.QuestionId,
+                selectedAnswerId.Value,
+                questionSeconds
+            );
+        }
+
+        if (currentQuestionIndex < currentAttempt!.TotalQuestions - 1)
+        {
+            currentQuestionIndex++;
+            selectedAnswerId = null;
+            answerChecked = false;
+            feedbackMessage = null;
+            ResetQuestionTimer();
+        }
+        else
+        {
+            // Finish test
+            sessionTimer?.Dispose();
+            questionTimer?.Dispose();
+            currentAttempt = await TestService.CompleteTestAsync(currentAttempt.Id);
+            showSummary = true;
+        }
+    }
+
+    private string GetAnswerClass(int answerId)
+    {
+        if (!answerChecked) return "";
+        
+        var answer = GetCurrentQuestion()?.Question.Answers.FirstOrDefault(a => a.Id == answerId);
+        if (answer == null) return "";
+
+        if (answer.IsCorrect) return "list-group-item-success";
+        if (selectedAnswerId == answerId && !answer.IsCorrect) return "list-group-item-danger";
+        
+        return "";
+    }
+
+    private void FlagQuestion()
+    {
+        showFlagModal = true;
+        flagComments = null;
+    }
+
+    private async Task SubmitFlag()
+    {
+        var currentQuestion = GetCurrentQuestion();
+        if (currentQuestion != null)
+        {
+            await QuestionService.FlagQuestionAsync(
+                currentQuestion.QuestionId,
+                userId,
+                userEmail,
+                flagComments
+            );
+        }
+        showFlagModal = false;
+    }
+
+    private void ReviewAnswers()
+    {
+        NavigationManager.NavigateTo($"/review-attempt/{currentAttempt!.Id}");
+    }
+
+    private void TakeAgain()
+    {
+        currentAttempt = null;
+        showSummary = false;
+        StateHasChanged();
+    }
+
+    private string GetTestDuration()
+    {
+        if (currentAttempt?.EndTime == null) return "00:00";
+        var duration = currentAttempt.EndTime.Value - currentAttempt.StartTime;
+        return $"{(int)duration.TotalMinutes}:{duration.Seconds:D2}";
+    }
+
+    public void Dispose()
+    {
+        sessionTimer?.Dispose();
+        questionTimer?.Dispose();
+    }
+}

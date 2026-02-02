@@ -1,0 +1,165 @@
+@page "/test-history"
+@using Microsoft.AspNetCore.Authorization
+@using StudyTestSimulator.Web.Services
+@using StudyTestSimulator.Web.Models
+@inject ITestService TestService
+@inject ICategoryService CategoryService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+
+<PageTitle>Test History</PageTitle>
+
+<div class="container mt-4">
+    <h1 class="mb-4">Test History</h1>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <label class="form-label">Filter by Category</label>
+            <select class="form-select" @bind="filterCategoryId" @bind:after="LoadHistory">
+                <option value="0">All Categories</option>
+                @if (categories != null)
+                {
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (testHistory == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (!testHistory.Any())
+    {
+        <div class="alert alert-info">
+            No test history found. Take a test to see your results here!
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Score</th>
+                        <th>Questions</th>
+                        <th>Correct</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var attempt in testHistory)
+                    {
+                        <tr>
+                            <td>@attempt.StartTime.ToLocalTime().ToString("g")</td>
+                            <td>@attempt.TestCategory.Name</td>
+                            <td>
+                                <span class="badge @GetScoreBadgeClass(attempt.PercentageScore) fs-6">
+                                    @attempt.PercentageScore.ToString("F1")%
+                                </span>
+                            </td>
+                            <td>@attempt.TotalQuestions</td>
+                            <td>@attempt.CorrectAnswers</td>
+                            <td>@GetDuration(attempt)</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" @onclick="() => ReviewAttempt(attempt.Id)">
+                                    <i class="bi bi-eye"></i> Review
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (testHistory.Any())
+        {
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="display-6 text-primary">@testHistory.Count</div>
+                            <p class="text-muted">Total Tests</p>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6 text-success">@testHistory.Average(t => t.PercentageScore).ToString("F1")%</div>
+                            <p class="text-muted">Average Score</p>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6 text-info">@testHistory.Sum(t => t.TotalQuestions)</div>
+                            <p class="text-muted">Questions Attempted</p>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="display-6 text-warning">@testHistory.Sum(t => t.CorrectAnswers)</div>
+                            <p class="text-muted">Correct Answers</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<TestCategory>? categories;
+    private List<TestAttempt>? testHistory;
+    private int filterCategoryId = 0;
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.Identity?.Name ?? string.Empty;
+
+        categories = await CategoryService.GetAllCategoriesAsync();
+        await LoadHistory();
+    }
+
+    private async Task LoadHistory()
+    {
+        if (filterCategoryId > 0)
+        {
+            testHistory = await TestService.GetTestHistoryAsync(userId, filterCategoryId);
+        }
+        else
+        {
+            testHistory = await TestService.GetTestHistoryAsync(userId);
+        }
+    }
+
+    private string GetScoreBadgeClass(decimal score)
+    {
+        if (score >= 90) return "bg-success";
+        if (score >= 70) return "bg-primary";
+        if (score >= 50) return "bg-warning";
+        return "bg-danger";
+    }
+
+    private string GetDuration(TestAttempt attempt)
+    {
+        if (!attempt.EndTime.HasValue) return "In Progress";
+        
+        var duration = attempt.EndTime.Value - attempt.StartTime;
+        if (duration.TotalMinutes < 1)
+            return $"{duration.Seconds}s";
+        else if (duration.TotalHours < 1)
+            return $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
+        else
+            return $"{(int)duration.TotalHours}h {duration.Minutes}m";
+    }
+
+    private void ReviewAttempt(int attemptId)
+    {
+        NavigationManager.NavigateTo($"/review-attempt/{attemptId}");
+    }
+}

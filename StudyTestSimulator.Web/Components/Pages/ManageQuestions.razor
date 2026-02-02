@@ -1,0 +1,241 @@
+@page "/manage-questions"
+@using Microsoft.AspNetCore.Authorization
+@using StudyTestSimulator.Web.Services
+@using StudyTestSimulator.Web.Models
+@inject ICategoryService CategoryService
+@inject IQuestionService QuestionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+
+<PageTitle>Manage Questions</PageTitle>
+
+<div class="container mt-4">
+    <h1 class="mb-4">Manage Questions</h1>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <label class="form-label">Select Category</label>
+            <select class="form-select" @bind="selectedCategoryId" @bind:after="LoadQuestions">
+                <option value="0">-- Select a category --</option>
+                @if (categories != null)
+                {
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-6 d-flex align-items-end">
+            <button class="btn btn-primary me-2" @onclick="ShowAddQuestionModal" disabled="@(selectedCategoryId == 0)">
+                <i class="bi bi-plus-circle"></i> Add Question
+            </button>
+            <button class="btn btn-success" @onclick="ShowImportModal" disabled="@(selectedCategoryId == 0)">
+                <i class="bi bi-file-earmark-arrow-up"></i> Import from JSON
+            </button>
+        </div>
+    </div>
+
+    @if (questions != null && questions.Any())
+    {
+        <div class="accordion" id="questionsAccordion">
+            @for (int i = 0; i < questions.Count; i++)
+            {
+                var question = questions[i];
+                var index = i;
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse@index">
+                            Question @(index + 1): @(question.QuestionText.Length > 100 ? question.QuestionText.Substring(0, 100) + "..." : question.QuestionText)
+                            @if (question.Flags.Any(f => !f.IsResolved))
+                            {
+                                <span class="badge bg-warning ms-2">Flagged</span>
+                            }
+                        </button>
+                    </h2>
+                    <div id="collapse@index" class="accordion-collapse collapse" data-bs-parent="#questionsAccordion">
+                        <div class="accordion-body">
+                            <p><strong>Question:</strong> @question.QuestionText</p>
+                            @if (!string.IsNullOrEmpty(question.ImageBase64))
+                            {
+                                <img src="@question.ImageBase64" class="img-fluid mb-3" style="max-width: 400px;" alt="Question image" />
+                            }
+                            <p><strong>Answers:</strong></p>
+                            <ul>
+                                @foreach (var answer in question.Answers.OrderBy(a => a.DisplayOrder))
+                                {
+                                    <li class="@(answer.IsCorrect ? "text-success fw-bold" : "")">
+                                        @answer.AnswerText
+                                        @if (answer.IsCorrect)
+                                        {
+                                            <i class="bi bi-check-circle text-success"></i>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                            @if (!string.IsNullOrEmpty(question.Explanation))
+                            {
+                                <p><strong>Explanation:</strong> @question.Explanation</p>
+                            }
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditQuestion(question)">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteQuestion(question.Id)">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (selectedCategoryId > 0)
+    {
+        <div class="alert alert-info">
+            No questions in this category yet. Add your first question!
+        </div>
+    }
+</div>
+
+@if (showImportModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Import Questions from JSON</h5>
+                    <button type="button" class="btn-close" @onclick="CloseImportModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Paste your JSON data below. Format:</p>
+                    <pre class="bg-light p-2" style="font-size: 0.85em;">
+{
+  "questions": [
+    {
+      "questionText": "Your question here?",
+      "explanation": "Optional explanation",
+      "imageBase64": "data:image/png;base64,... (optional)",
+      "answers": [
+        {
+          "answerText": "Answer 1",
+          "isCorrect": false,
+          "explanation": "Optional explanation"
+        },
+        {
+          "answerText": "Answer 2",
+          "isCorrect": true,
+          "explanation": "Optional explanation"
+        }
+      ]
+    }
+  ]
+}
+                    </pre>
+                    <textarea class="form-control" rows="10" @bind="jsonImportData" placeholder="Paste JSON here..."></textarea>
+                    @if (!string.IsNullOrEmpty(importErrorMessage))
+                    {
+                        <div class="alert alert-danger mt-3">@importErrorMessage</div>
+                    }
+                    @if (!string.IsNullOrEmpty(importSuccessMessage))
+                    {
+                        <div class="alert alert-success mt-3">@importSuccessMessage</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseImportModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="ImportQuestions" disabled="@string.IsNullOrWhiteSpace(jsonImportData)">
+                        Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TestCategory>? categories;
+    private List<Question>? questions;
+    private int selectedCategoryId = 0;
+    private bool showImportModal = false;
+    private string? jsonImportData;
+    private string? importErrorMessage;
+    private string? importSuccessMessage;
+    private string userId = string.Empty;
+    private string userEmail = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.Identity?.Name ?? string.Empty;
+        userEmail = authState.User.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value ?? string.Empty;
+
+        categories = await CategoryService.GetAllCategoriesAsync();
+    }
+
+    private async Task LoadQuestions()
+    {
+        if (selectedCategoryId > 0)
+        {
+            questions = await QuestionService.GetQuestionsByCategoryAsync(selectedCategoryId);
+        }
+        else
+        {
+            questions = null;
+        }
+    }
+
+    private void ShowAddQuestionModal()
+    {
+        // TODO: Implement add question modal
+    }
+
+    private void EditQuestion(Question question)
+    {
+        // TODO: Implement edit question modal
+    }
+
+    private async Task DeleteQuestion(int questionId)
+    {
+        await QuestionService.DeleteQuestionAsync(questionId);
+        await LoadQuestions();
+    }
+
+    private void ShowImportModal()
+    {
+        showImportModal = true;
+        jsonImportData = null;
+        importErrorMessage = null;
+        importSuccessMessage = null;
+    }
+
+    private void CloseImportModal()
+    {
+        showImportModal = false;
+        jsonImportData = null;
+        importErrorMessage = null;
+        importSuccessMessage = null;
+    }
+
+    private async Task ImportQuestions()
+    {
+        importErrorMessage = null;
+        importSuccessMessage = null;
+
+        try
+        {
+            var imported = await QuestionService.ImportQuestionsFromJsonAsync(jsonImportData!, selectedCategoryId, userId, userEmail);
+            importSuccessMessage = $"Successfully imported {imported.Count} question(s)!";
+            await LoadQuestions();
+            
+            // Auto-close after 2 seconds
+            await Task.Delay(2000);
+            CloseImportModal();
+        }
+        catch (Exception ex)
+        {
+            importErrorMessage = $"Error importing questions: {ex.Message}";
+        }
+    }
+}

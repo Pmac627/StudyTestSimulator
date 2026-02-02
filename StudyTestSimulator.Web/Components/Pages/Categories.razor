@@ -1,0 +1,187 @@
+@page "/categories"
+@using Microsoft.AspNetCore.Authorization
+@using StudyTestSimulator.Web.Services
+@using StudyTestSimulator.Web.Models
+@inject ICategoryService CategoryService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+
+<PageTitle>Test Categories</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Test Categories</h1>
+        <button class="btn btn-primary" @onclick="ShowAddCategoryModal">
+            <i class="bi bi-plus-circle"></i> Add Category
+        </button>
+    </div>
+
+    @if (categories == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (!categories.Any())
+    {
+        <div class="alert alert-info">
+            No categories available. Create your first category to get started!
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var category in categories)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">@category.Name</h5>
+                            <p class="card-text">@(category.Description ?? "No description")</p>
+                            <p class="text-muted small">
+                                <i class="bi bi-question-circle"></i> @questionCounts.GetValueOrDefault(category.Id, 0) questions
+                            </p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditCategory(category)">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategory(category)">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(editingCategory?.Id > 0 ? "Edit" : "Add") Category</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Category Name</label>
+                        <input type="text" class="form-control" @bind="editingCategory!.Name" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" rows="3" @bind="editingCategory!.Description"></textarea>
+                    </div>
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveCategory">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TestCategory>? categories;
+    private Dictionary<int, int> questionCounts = new();
+    private bool showModal = false;
+    private TestCategory? editingCategory;
+    private string? errorMessage;
+    private string userId = string.Empty;
+    private string userEmail = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.Identity?.Name ?? string.Empty;
+        userEmail = authState.User.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value ?? string.Empty;
+
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        categories = await CategoryService.GetAllCategoriesAsync();
+        foreach (var category in categories)
+        {
+            questionCounts[category.Id] = await CategoryService.GetQuestionCountAsync(category.Id);
+        }
+    }
+
+    private void ShowAddCategoryModal()
+    {
+        editingCategory = new TestCategory { Name = "", CreatedBy = userId };
+        errorMessage = null;
+        showModal = true;
+    }
+
+    private void EditCategory(TestCategory category)
+    {
+        editingCategory = new TestCategory
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Description = category.Description,
+            CreatedBy = category.CreatedBy,
+            CreatedDate = category.CreatedDate,
+            ModifiedBy = userId
+        };
+        errorMessage = null;
+        showModal = true;
+    }
+
+    private async Task SaveCategory()
+    {
+        if (string.IsNullOrWhiteSpace(editingCategory?.Name))
+        {
+            errorMessage = "Category name is required.";
+            return;
+        }
+
+        try
+        {
+            if (editingCategory.Id == 0)
+            {
+                editingCategory.CreatedBy = userId;
+                await CategoryService.CreateCategoryAsync(editingCategory);
+            }
+            else
+            {
+                editingCategory.ModifiedBy = userId;
+                await CategoryService.UpdateCategoryAsync(editingCategory);
+            }
+
+            await LoadCategories();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving category: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteCategory(TestCategory category)
+    {
+        if (questionCounts.GetValueOrDefault(category.Id, 0) > 0)
+        {
+            // Could show a confirmation dialog here
+            return;
+        }
+
+        await CategoryService.DeleteCategoryAsync(category.Id);
+        await LoadCategories();
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingCategory = null;
+        errorMessage = null;
+    }
+}
