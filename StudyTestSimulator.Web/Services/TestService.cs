@@ -170,4 +170,44 @@ public class TestService : ITestService
                     .ThenInclude(q => q.Answers.OrderBy(a => a.DisplayOrder))
             .FirstOrDefaultAsync(t => t.Id == attemptId);
     }
+
+    public async Task<List<TestAttempt>> GetRecentAttemptsAsync(int count = 10)
+    {
+        return await _context.TestAttempts
+            .Include(t => t.TestCategory)
+            .Where(t => t.IsCompleted)
+            .OrderByDescending(t => t.StartTime)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    public async Task<TestAttempt?> GetLastAttemptForCategoryAsync(string userId, int categoryId)
+    {
+        return await _context.TestAttempts
+            .Include(t => t.TestCategory)
+            .Where(t => t.UserId == userId && t.TestCategoryId == categoryId && t.IsCompleted)
+            .OrderByDescending(t => t.StartTime)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<(List<TestAttempt> Items, int TotalCount)> GetAllTestHistoryPagedAsync(int? categoryId, int page, int pageSize)
+    {
+        var query = _context.TestAttempts
+            .Include(t => t.TestCategory)
+            .Where(t => t.IsCompleted);
+
+        if (categoryId.HasValue && categoryId.Value > 0)
+        {
+            query = query.Where(t => t.TestCategoryId == categoryId.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(t => t.StartTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
 }

@@ -11,4 +11,7 @@ public interface ITestService
     Task<TestAttempt> CompleteTestAsync(int attemptId);
     Task<List<TestAttempt>> GetTestHistoryAsync(string userId, int? categoryId = null);
     Task<TestAttempt?> GetTestAttemptDetailsAsync(int attemptId);
+    Task<List<TestAttempt>> GetRecentAttemptsAsync(int count = 10);
+    Task<TestAttempt?> GetLastAttemptForCategoryAsync(string userId, int categoryId);
+    Task<(List<TestAttempt> Items, int TotalCount)> GetAllTestHistoryPagedAsync(int? categoryId, int page, int pageSize);
 }

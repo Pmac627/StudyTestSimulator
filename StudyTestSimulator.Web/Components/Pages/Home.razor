@@ -2,8 +2,6 @@
 @using Microsoft.AspNetCore.Authorization
 @using StudyTestSimulator.Web.Services
 @inject ITestService TestService
-@inject ICategoryService CategoryService
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @attribute [Authorize]
 
 <PageTitle>Home - Study Test Simulator</PageTitle>
@@ -60,6 +58,7 @@
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>User</th>
                             <th>Category</th>
                             <th>Score</th>
                             <th>Questions</th>
@@ -67,10 +66,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var attempt in recentAttempts.Take(5))
+                        @foreach (var attempt in recentAttempts)
                         {
                             <tr>
                                 <td>@attempt.StartTime.ToLocalTime().ToString("g")</td>
+                                <td>@attempt.UserEmail</td>
                                 <td>@attempt.TestCategory.Name</td>
                                 <td>
                                     <span class="badge @GetScoreBadgeClass(attempt.PercentageScore)">
@@ -90,17 +90,10 @@
 
 @code {
     private List<Models.TestAttempt>? recentAttempts;
-    private string userId = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        userId = authState.User.Identity?.Name ?? string.Empty;
-
-        if (!string.IsNullOrEmpty(userId))
-        {
-            recentAttempts = await TestService.GetTestHistoryAsync(userId);
-        }
+        recentAttempts = await TestService.GetRecentAttemptsAsync(10);
     }
 
     private string GetScoreBadgeClass(decimal score)

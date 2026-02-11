@@ -36,8 +36,13 @@
                         <div class="card-body">
                             <h5 class="card-title">@category.Name</h5>
                             <p class="card-text">@(category.Description ?? "No description")</p>
-                            <p class="text-muted small">
+                            <p class="text-muted small mb-1">
                                 <i class="bi bi-question-circle"></i> @questionCounts.GetValueOrDefault(category.Id, 0) questions
+                            </p>
+                            <p class="text-muted small mb-0">
+                                <i class="bi bi-person"></i> @category.CreatedBy
+                                <br />
+                                <i class="bi bi-calendar"></i> @category.CreatedDate.ToLocalTime().ToString("g")
                             </p>
                         </div>
                         <div class="card-footer bg-transparent">

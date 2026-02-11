@@ -37,9 +37,18 @@
                             <div class="card-body">
                                 <h5 class="card-title">@category.Name</h5>
                                 <p class="card-text">@(category.Description ?? "No description")</p>
-                                <p class="text-muted small">
+                                <p class="text-muted small mb-1">
                                     <i class="bi bi-question-circle"></i> @questionCounts.GetValueOrDefault(category.Id, 0) questions
                                 </p>
+                                @if (lastAttempts.TryGetValue(category.Id, out var lastAttempt) && lastAttempt != null)
+                                {
+                                    <p class="small mb-0">
+                                        <span class="badge @GetScoreBadgeClass(lastAttempt.PercentageScore)">
+                                            Last: @lastAttempt.PercentageScore.ToString("F0")%
+                                        </span>
+                                        <span class="text-muted ms-1">@lastAttempt.StartTime.ToLocalTime().ToString("MMM d")</span>
+                                    </p>
+                                }
                             </div>
                             <div class="card-footer bg-transparent">
                                 <button class="btn btn-primary w-100" @onclick="() => StartTest(category.Id)" disabled="@(questionCounts.GetValueOrDefault(category.Id, 0) == 0)">
@@ -99,7 +108,7 @@
                                             <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Incorrect</span>
                                         }
                                     </td>
-                                    <td>@(taq.TimeSpentSeconds ?? 0)s</td>
+                                    <td>@taq.TimeSpentSeconds s</td>
                                 </tr>
                             }
                         </tbody>
@@ -245,6 +254,7 @@
 @code {
     private List<TestCategory>? categories;
     private Dictionary<int, int> questionCounts = new();
+    private Dictionary<int, TestAttempt?> lastAttempts = new();
     private TestAttempt? currentAttempt;
     private int currentQuestionIndex = 0;
     private int? selectedAnswerId;
@@ -281,6 +291,7 @@
             foreach (var category in categories)
             {
                 questionCounts[category.Id] = await CategoryService.GetQuestionCountAsync(category.Id);
+                lastAttempts[category.Id] = await TestService.GetLastAttemptForCategoryAsync(userId, category.Id);
             }
         }
         else
@@ -432,6 +443,14 @@
         if (currentAttempt?.EndTime == null) return "00:00";
         var duration = currentAttempt.EndTime.Value - currentAttempt.StartTime;
         return $"{(int)duration.TotalMinutes}:{duration.Seconds:D2}";
+    }
+
+    private string GetScoreBadgeClass(decimal score)
+    {
+        if (score >= 90) return "bg-success";
+        if (score >= 70) return "bg-primary";
+        if (score >= 50) return "bg-warning";
+        return "bg-danger";
     }
 
     public void Dispose()

@@ -41,78 +41,89 @@
     }
     else
     {
-        @foreach (var flag in flags)
-        {
-            <div class="card mb-3 @(flag.IsResolved ? "border-success" : "border-warning")">
-                <div class="card-header @(flag.IsResolved ? "bg-success" : "bg-warning") @(flag.IsResolved ? "text-white" : "")">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            @flag.Question.TestCategory.Name - Question #@flag.QuestionId
-                            @if (flag.IsResolved)
-                            {
-                                <span class="badge bg-light text-success ms-2">Resolved</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-light text-warning ms-2">Needs Review</span>
-                            }
-                        </h5>
-                        <small>Flagged: @flag.FlaggedDate.ToLocalTime().ToString("g")</small>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <h6>Question:</h6>
-                    <p>@flag.Question.QuestionText</p>
-
-                    @if (!string.IsNullOrEmpty(flag.Question.ImageBase64))
-                    {
-                        <div class="mb-3">
-                            <img src="@flag.Question.ImageBase64" class="img-fluid" style="max-width: 400px;" alt="Question image" />
-                        </div>
-                    }
-
-                    <h6>Answers:</h6>
-                    <ul class="list-group list-group-flush mb-3">
-                        @foreach (var answer in flag.Question.Answers.OrderBy(a => a.DisplayOrder))
-                        {
-                            <li class="list-group-item @(answer.IsCorrect ? "list-group-item-success" : "")">
-                                @answer.AnswerText
-                                @if (answer.IsCorrect)
-                                {
-                                    <i class="bi bi-check-circle text-success float-end"></i>
-                                }
-                            </li>
-                        }
-                    </ul>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Flagged by:</strong> @flag.FlaggedBy (@flag.FlaggedByEmail)</p>
-                            @if (!string.IsNullOrEmpty(flag.Comments))
-                            {
-                                <p><strong>Comments:</strong> @flag.Comments</p>
-                            }
-                        </div>
-                        @if (flag.IsResolved)
-                        {
-                            <div class="col-md-6">
-                                <p><strong>Resolved by:</strong> @flag.ResolvedBy</p>
-                                <p><strong>Resolved on:</strong> @flag.ResolvedDate?.ToLocalTime().ToString("g")</p>
+        <div class="accordion" id="flaggedQuestionsAccordion">
+            @for (int i = 0; i < flags.Count; i++)
+            {
+                var flag = flags[i];
+                var index = i;
+                <div class="accordion-item @(flag.IsResolved ? "border-success" : "border-warning")">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed @(flag.IsResolved ? "bg-success-subtle" : "bg-warning-subtle")"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#flagCollapse@index">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <span>
+                                    @flag.Question.TestCategory.Name - Question #@flag.QuestionId
+                                    @if (flag.IsResolved)
+                                    {
+                                        <span class="badge bg-success ms-2">Resolved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark ms-2">Needs Review</span>
+                                    }
+                                </span>
+                                <small class="text-muted">@flag.FlaggedDate.ToLocalTime().ToString("g")</small>
                             </div>
-                        }
-                    </div>
+                        </button>
+                    </h2>
+                    <div id="flagCollapse@index" class="accordion-collapse collapse" data-bs-parent="#flaggedQuestionsAccordion">
+                        <div class="accordion-body">
+                            <h6>Question:</h6>
+                            <p>@flag.Question.QuestionText</p>
 
-                    @if (!flag.IsResolved)
-                    {
-                        <div class="mt-3">
-                            <button class="btn btn-success" @onclick="() => ResolveFlag(flag.Id)">
-                                <i class="bi bi-check-circle"></i> Mark as Resolved
-                            </button>
+                            @if (!string.IsNullOrEmpty(flag.Question.ImageBase64))
+                            {
+                                <div class="mb-3">
+                                    <img src="@flag.Question.ImageBase64" class="img-fluid" style="max-width: 400px;" alt="Question image" />
+                                </div>
+                            }
+
+                            <h6>Answers:</h6>
+                            <ul class="list-group list-group-flush mb-3">
+                                @foreach (var answer in flag.Question.Answers.OrderBy(a => a.DisplayOrder))
+                                {
+                                    <li class="list-group-item @(answer.IsCorrect ? "list-group-item-success" : "")">
+                                        @answer.AnswerText
+                                        @if (answer.IsCorrect)
+                                        {
+                                            <i class="bi bi-check-circle text-success float-end"></i>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Flagged by:</strong> @flag.FlaggedBy (@flag.FlaggedByEmail)</p>
+                                    @if (!string.IsNullOrEmpty(flag.Comments))
+                                    {
+                                        <p><strong>Comments:</strong> @flag.Comments</p>
+                                    }
+                                </div>
+                                @if (flag.IsResolved)
+                                {
+                                    <div class="col-md-6">
+                                        <p><strong>Resolved by:</strong> @flag.ResolvedBy</p>
+                                        <p><strong>Resolved on:</strong> @flag.ResolvedDate?.ToLocalTime().ToString("g")</p>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (!flag.IsResolved)
+                            {
+                                <div class="mt-3">
+                                    <button class="btn btn-success" @onclick="() => ResolveFlag(flag.Id)">
+                                        <i class="bi bi-check-circle"></i> Mark as Resolved
+                                    </button>
+                                </div>
+                            }
                         </div>
-                    }
+                    </div>
                 </div>
-            </div>
-        }
+            }
+        </div>
     }
 </div>
 
