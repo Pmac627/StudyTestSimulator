@@ -51,8 +51,32 @@ public class QuestionService : IQuestionService
 
     public async Task UpdateQuestionAsync(Question question)
     {
-        question.ModifiedDate = DateTime.UtcNow;
-        _context.Questions.Update(question);
+        var existing = await _context.Questions
+            .Include(q => q.Answers)
+            .FirstOrDefaultAsync(q => q.Id == question.Id);
+
+        if (existing == null) return;
+
+        // Update scalar properties on the tracked entity
+        existing.QuestionText = question.QuestionText;
+        existing.ImageBase64 = question.ImageBase64;
+        existing.Explanation = question.Explanation;
+        existing.ModifiedDate = DateTime.UtcNow;
+        existing.ModifiedBy = question.ModifiedBy;
+
+        // Replace answers: remove old, add new
+        _context.Answers.RemoveRange(existing.Answers);
+        foreach (var answer in question.Answers)
+        {
+            existing.Answers.Add(new Answer
+            {
+                AnswerText = answer.AnswerText,
+                IsCorrect = answer.IsCorrect,
+                Explanation = answer.Explanation,
+                DisplayOrder = answer.DisplayOrder
+            });
+        }
+
         await _context.SaveChangesAsync();
     }
 

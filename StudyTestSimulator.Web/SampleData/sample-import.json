@@ -1,0 +1,177 @@
+{
+  "questions": [
+    {
+      "questionText": "Which layer of the OSI model is responsible for end-to-end communication and error recovery?",
+      "imageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAl9JREFUeJzt3bFOw0AQBdBx+P9fJhUFEpadzezOvSMl0dp+vjt7Y4ck7+/v7x8k/Nv9APwmSMIESZggiX93PwCfbb8hX7+d7/hN++v3sss8h4UkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRL2sfsBfrq7/zn4u7ZfYIeHnOcwS5ggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYa/5v6wT3L0LdjBLmCAJEyRhgiRMkIQJkjBBEiZIwgRJmCAJEyRhgiTs79sf4Kfb/2exE8wueTBLmCAJEyRhgiRMkIQJkjBBEiZIwgRJmCAJEyRhgiTsH/sjnOD6f4w+0C6zhAmSMEESJkjCBEmYIAkTJGGCJEyQhAmSMEESJkjC/gDQ2gqJrZhhJAAAAABJRU5ErkJggg==",
+      "explanation": "The Transport layer (Layer 4) provides end-to-end communication services for applications. It is responsible for reliable data transfer, flow control, and error recovery between hosts.",
+      "answers": [
+        {
+          "answerText": "Physical Layer (Layer 1)",
+          "isCorrect": false,
+          "explanation": "The Physical layer deals with the transmission of raw bit streams over a physical medium, not end-to-end communication."
+        },
+        {
+          "answerText": "Data Link Layer (Layer 2)",
+          "isCorrect": false,
+          "explanation": "The Data Link layer provides node-to-node data transfer and handles error correction from the Physical layer, but not end-to-end."
+        },
+        {
+          "answerText": "Transport Layer (Layer 4)",
+          "isCorrect": true,
+          "explanation": "Correct! The Transport layer provides end-to-end communication, reliability, flow control, and error recovery. TCP and UDP operate at this layer."
+        },
+        {
+          "answerText": "Application Layer (Layer 7)",
+          "isCorrect": false,
+          "explanation": "The Application layer provides network services directly to end-user applications but relies on lower layers for transport."
+        }
+      ]
+    },
+    {
+      "questionText": "What is the default port number for HTTPS?",
+      "answers": [
+        {
+          "answerText": "80",
+          "isCorrect": false
+        },
+        {
+          "answerText": "443",
+          "isCorrect": true
+        },
+        {
+          "answerText": "8080",
+          "isCorrect": false
+        },
+        {
+          "answerText": "8443",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "questionText": "In C#, is a 'struct' a value type or a reference type?",
+      "explanation": "In C#, structs are value types that are stored on the stack (or inline in containing types). They are copied by value when assigned or passed as parameters, unlike classes which are reference types stored on the heap.",
+      "answers": [
+        {
+          "answerText": "Value type",
+          "isCorrect": true
+        },
+        {
+          "answerText": "Reference type",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "questionText": "Which of the following are valid HTTP methods defined in the HTTP/1.1 specification (RFC 7231)?",
+      "explanation": "HTTP/1.1 defines several standard request methods. GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, and TRACE are all valid. FETCH is not a standard HTTP method - it is a browser API for making HTTP requests.",
+      "answers": [
+        {
+          "answerText": "GET",
+          "isCorrect": false,
+          "explanation": "GET is valid, but this question asks which single answer is NOT valid."
+        },
+        {
+          "answerText": "POST",
+          "isCorrect": false,
+          "explanation": "POST is a valid HTTP method used to submit data to a server."
+        },
+        {
+          "answerText": "PATCH",
+          "isCorrect": false,
+          "explanation": "PATCH is a valid HTTP method used for partial modifications to a resource."
+        },
+        {
+          "answerText": "FETCH",
+          "isCorrect": true,
+          "explanation": "Correct! FETCH is not a standard HTTP method. It is a JavaScript browser API (fetch()) used to make HTTP requests, but 'FETCH' itself is not an HTTP verb."
+        },
+        {
+          "answerText": "DELETE",
+          "isCorrect": false,
+          "explanation": "DELETE is a valid HTTP method used to remove a specified resource."
+        },
+        {
+          "answerText": "OPTIONS",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "questionText": "What does the following C# code output?\n\nstring text = \"Hello \\\"World\\\"\";\nConsole.WriteLine($\"Length: {text.Length}, Value: '{text}'\");\n\nNote: Consider escaped quotes (\\\") and the use of string interpolation ($\"\").",
+      "explanation": "The string contains: H-e-l-l-o- -\"-W-o-r-l-d-\" which is 13 characters. The escaped quotes (\\\")\u00a0count as single characters. The $\"\" string interpolation evaluates the expressions inside the curly braces at runtime.",
+      "answers": [
+        {
+          "answerText": "Length: 13, Value: 'Hello \"World\"'",
+          "isCorrect": true,
+          "explanation": "The backslash-quote (\\\")\u00a0is an escape sequence that produces a single double-quote character. So the total length is 13, and the output shows the unescaped quotes."
+        },
+        {
+          "answerText": "Length: 15, Value: 'Hello \\\"World\\\"'",
+          "isCorrect": false,
+          "explanation": "This would be correct if the backslashes were literal characters, but \\\" is an escape sequence \u2014 the backslash is not stored in the string."
+        },
+        {
+          "answerText": "Length: 11, Value: 'Hello World'",
+          "isCorrect": false,
+          "explanation": "This ignores the escaped quote characters entirely. The quotes are part of the string content."
+        },
+        {
+          "answerText": "Compilation error: invalid string format",
+          "isCorrect": false,
+          "explanation": "The code is syntactically valid C#. Escaped quotes and string interpolation are standard features."
+        }
+      ]
+    },
+    {
+      "questionText": "Which design pattern provides a way to create objects without specifying the exact class of object that will be created?",
+      "explanation": "The Factory Method pattern defines an interface for creating an object, but lets subclasses decide which class to instantiate. It defers instantiation to subclasses.",
+      "answers": [
+        {
+          "answerText": "Observer Pattern",
+          "isCorrect": false,
+          "explanation": "Observer defines a one-to-many dependency so that when one object changes state, all its dependents are notified."
+        },
+        {
+          "answerText": "Factory Method Pattern",
+          "isCorrect": true
+        },
+        {
+          "answerText": "Singleton Pattern",
+          "isCorrect": false
+        },
+        {
+          "answerText": "Decorator Pattern",
+          "isCorrect": false,
+          "explanation": "Decorator attaches additional responsibilities to an object dynamically, providing a flexible alternative to subclassing."
+        }
+      ]
+    },
+    {
+      "questionText": "What type of DNS record is used to map a domain name to an IPv4 address?",
+      "imageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAAAyCAYAAACqNX6lAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAYBJREFUeJzt2zEOwyAQRdHQ5P4XJk2KKJaXBXuG/05K5cmywWBx+nw+nz+I+N79AHwTJGGCJEyQhAmSMEESJkjCBEmYIAkTJGGCJEyQhAmSMEESJkjCBEmYIAkTJGGCJEyQhAmSMEESJkjCBEmYIAkTJGGCJEyQhAmSMEESJkjCBEmYIAkTJGGCJEyQhAmSMEESJkjCBEmYIAkTJGGCJOx99wNscfrf/Y5/5N++6e+/7oCeQ5CECZIwQRImSMIESZggCRMkYYIkTJCECZIwQRImSML+bH+A33b/J+OKWcIESZggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIk7H37A/x2Z/9n8YJZwgRJmCAJEyRhgiRMkIQJkjBBEiZIwgRJmCAJEyRhgiTsD4bQLImt3GEkS5ggCRMkYYIkTJCECZIwQRImSMIESZggCRMkYYIk7D/2RzjBuf8YvaEdZgkTJGGCJEyQhAmSMEESJkjCBEmYIAkTJGGCJOwLnUIapgXZWh4AAAAASUVORK5CYII=",
+      "answers": [
+        {
+          "answerText": "A Record",
+          "isCorrect": true,
+          "explanation": "An A (Address) record maps a domain name directly to an IPv4 address."
+        },
+        {
+          "answerText": "AAAA Record",
+          "isCorrect": false,
+          "explanation": "AAAA records map domain names to IPv6 addresses, not IPv4."
+        },
+        {
+          "answerText": "CNAME Record",
+          "isCorrect": false,
+          "explanation": "A CNAME (Canonical Name) record maps one domain name to another domain name, not to an IP address."
+        },
+        {
+          "answerText": "MX Record",
+          "isCorrect": false,
+          "explanation": "MX (Mail Exchange) records specify the mail server responsible for receiving email on behalf of a domain."
+        }
+      ]
+    }
+  ]
+}
