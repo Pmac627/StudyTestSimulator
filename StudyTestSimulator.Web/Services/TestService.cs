@@ -132,13 +132,69 @@ public class TestService : ITestService
             throw new InvalidOperationException("This test has already been completed.");
         }
 
+        // Mark unanswered questions as skipped
+        foreach (var q in attempt.TestAttemptQuestions.Where(q => q.SelectedAnswerId == null))
+        {
+            q.IsSkipped = true;
+        }
+
         // Calculate score
         attempt.CorrectAnswers = attempt.TestAttemptQuestions.Count(q => q.IsCorrect == true);
-        attempt.PercentageScore = attempt.TotalQuestions > 0 
-            ? Math.Round((decimal)attempt.CorrectAnswers / attempt.TotalQuestions * 100, 2) 
+        attempt.SkippedQuestions = attempt.TestAttemptQuestions.Count(q => q.IsSkipped);
+        attempt.PercentageScore = attempt.TotalQuestions > 0
+            ? Math.Round((decimal)attempt.CorrectAnswers / attempt.TotalQuestions * 100, 2)
             : 0;
         attempt.EndTime = DateTime.UtcNow;
         attempt.IsCompleted = true;
+
+        await _context.SaveChangesAsync();
+
+        return (await GetTestAttemptDetailsAsync(attemptId))!;
+    }
+
+    public async Task<TestAttempt?> AbandonTestAsync(int attemptId)
+    {
+        var attempt = await _context.TestAttempts
+            .Include(t => t.TestAttemptQuestions)
+            .FirstOrDefaultAsync(t => t.Id == attemptId);
+
+        if (attempt == null)
+            throw new ArgumentException("Test attempt not found.");
+
+        if (attempt.IsCompleted)
+            throw new InvalidOperationException("This test has already been completed.");
+
+        bool hasAnsweredQuestions = attempt.TestAttemptQuestions
+            .Any(q => q.SelectedAnswerId != null);
+
+        if (!hasAnsweredQuestions)
+        {
+            // No answers given -- delete the entire attempt (cascade deletes children)
+            _context.TestAttempts.Remove(attempt);
+            await _context.SaveChangesAsync();
+            return null;
+        }
+
+        // Has at least one answered question -- mark unanswered as skipped and complete
+        var now = DateTime.UtcNow;
+        foreach (var question in attempt.TestAttemptQuestions)
+        {
+            if (question.SelectedAnswerId == null)
+            {
+                question.IsSkipped = true;
+                question.IsCorrect = false;
+                question.QuestionEndTime = now;
+            }
+        }
+
+        attempt.CorrectAnswers = attempt.TestAttemptQuestions.Count(q => q.IsCorrect);
+        attempt.SkippedQuestions = attempt.TestAttemptQuestions.Count(q => q.IsSkipped);
+        attempt.PercentageScore = attempt.TotalQuestions > 0
+            ? Math.Round((decimal)attempt.CorrectAnswers / attempt.TotalQuestions * 100, 2)
+            : 0;
+        attempt.EndTime = now;
+        attempt.IsCompleted = true;
+        attempt.WasAbandoned = true;
 
         await _context.SaveChangesAsync();
 

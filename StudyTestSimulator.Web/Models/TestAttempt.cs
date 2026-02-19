@@ -12,6 +12,8 @@ public class TestAttempt
     public int CorrectAnswers { get; set; }
     public decimal PercentageScore { get; set; }
     public bool IsCompleted { get; set; }
+    public int SkippedQuestions { get; set; }
+    public bool WasAbandoned { get; set; }
 
     // Navigation properties
     public TestCategory TestCategory { get; set; } = null!;

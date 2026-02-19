@@ -77,7 +77,13 @@
                                         @attempt.PercentageScore.ToString("F1")%
                                     </span>
                                 </td>
-                                <td>@attempt.CorrectAnswers / @attempt.TotalQuestions</td>
+                                <td>
+                                    @attempt.CorrectAnswers / @attempt.TotalQuestions
+                                    @if (attempt.SkippedQuestions > 0)
+                                    {
+                                        <span class="text-secondary small ms-1">(@attempt.SkippedQuestions skipped)</span>
+                                    }
+                                </td>
                                 <td>@GetTestDuration(attempt)</td>
                             </tr>
                         }

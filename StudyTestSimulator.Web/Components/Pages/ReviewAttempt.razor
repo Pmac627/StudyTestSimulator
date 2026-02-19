@@ -32,15 +32,25 @@
                         <strong>Date:</strong> @attempt.StartTime.ToLocalTime().ToString("g")
                     </div>
                     <div class="col-md-3">
-                        <strong>Score:</strong> 
+                        <strong>Score:</strong>
                         <span class="badge @GetScoreBadgeClass(attempt.PercentageScore) fs-6">
                             @attempt.PercentageScore.ToString("F1")%
                         </span>
+                        @if (attempt.WasAbandoned)
+                        {
+                            <span class="badge bg-warning text-dark ms-1">Abandoned</span>
+                        }
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
                         <strong>Correct:</strong> @attempt.CorrectAnswers / @attempt.TotalQuestions
                     </div>
-                    <div class="col-md-3">
+                    @if (attempt.SkippedQuestions > 0)
+                    {
+                        <div class="col">
+                            <strong>Skipped:</strong> @attempt.SkippedQuestions
+                        </div>
+                    }
+                    <div class="col">
                         <strong>Duration:</strong> @GetDuration()
                     </div>
                 </div>
@@ -50,11 +60,15 @@
         @foreach (var taq in attempt.TestAttemptQuestions.OrderBy(q => q.QuestionOrder))
         {
             <div class="card mb-3">
-                <div class="card-header @(taq.IsCorrect == true ? "bg-success" : "bg-danger") text-white">
+                <div class="card-header @GetQuestionHeaderClass(taq) text-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             Question @(taq.QuestionOrder + 1)
-                            @if (taq.IsCorrect == true)
+                            @if (taq.IsSkipped)
+                            {
+                                <i class="bi bi-dash-circle-fill"></i>
+                            }
+                            else if (taq.IsCorrect)
                             {
                                 <i class="bi bi-check-circle-fill"></i>
                             }
@@ -64,11 +78,24 @@
                             }
                         </h5>
                         <span class="badge bg-light text-dark">
-                            Time: @taq.TimeSpentSeconds s
+                            @if (taq.IsSkipped)
+                            {
+                                <text>Skipped</text>
+                            }
+                            else
+                            {
+                                <text>Time: @taq.TimeSpentSeconds s</text>
+                            }
                         </span>
                     </div>
                 </div>
                 <div class="card-body">
+                    @if (taq.IsSkipped)
+                    {
+                        <div class="alert alert-secondary mb-3">
+                            <i class="bi bi-dash-circle"></i> This question was skipped — no answer was selected.
+                        </div>
+                    }
                     <h5>@taq.Question.QuestionText</h5>
                     
                     @{ var reviewImgSrc = !string.IsNullOrEmpty(taq.Question.ImageUrl) ? taq.Question.ImageUrl : taq.Question.ImageBase64; }
@@ -142,6 +169,13 @@
     protected override async Task OnInitializedAsync()
     {
         attempt = await TestService.GetTestAttemptDetailsAsync(AttemptId);
+    }
+
+    private string GetQuestionHeaderClass(TestAttemptQuestion taq)
+    {
+        if (taq.IsSkipped) return "bg-secondary";
+        if (taq.IsCorrect) return "bg-success";
+        return "bg-danger";
     }
 
     private string GetScoreBadgeClass(decimal score)

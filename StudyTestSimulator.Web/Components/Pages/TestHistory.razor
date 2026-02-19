@@ -50,6 +50,7 @@
                         <th>Score</th>
                         <th>Questions</th>
                         <th>Correct</th>
+                        <th>Skipped</th>
                         <th>Duration</th>
                         <th>Actions</th>
                     </tr>
@@ -65,9 +66,14 @@
                                 <span class="badge @GetScoreBadgeClass(attempt.PercentageScore) fs-6">
                                     @attempt.PercentageScore.ToString("F1")%
                                 </span>
+                                @if (attempt.WasAbandoned)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">Abandoned</span>
+                                }
                             </td>
                             <td>@attempt.TotalQuestions</td>
                             <td>@attempt.CorrectAnswers</td>
+                            <td>@attempt.SkippedQuestions</td>
                             <td>@GetDuration(attempt)</td>
                             <td>
                                 <button class="btn btn-sm btn-primary" @onclick="() => ReviewAttempt(attempt.Id)">
@@ -115,21 +121,25 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-md-3">
+                    <div class="col">
                         <div class="display-6 text-primary">@totalCount</div>
                         <p class="text-muted">Total Tests</p>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
                         <div class="display-6 text-success">@testHistory.Average(t => t.PercentageScore).ToString("F1")%</div>
                         <p class="text-muted">Avg Score (Page)</p>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
                         <div class="display-6 text-info">@testHistory.Sum(t => t.TotalQuestions)</div>
                         <p class="text-muted">Questions (Page)</p>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col">
                         <div class="display-6 text-warning">@testHistory.Sum(t => t.CorrectAnswers)</div>
                         <p class="text-muted">Correct (Page)</p>
+                    </div>
+                    <div class="col">
+                        <div class="display-6 text-secondary">@testHistory.Sum(t => t.SkippedQuestions)</div>
+                        <p class="text-muted">Skipped (Page)</p>
                     </div>
                 </div>
             </div>

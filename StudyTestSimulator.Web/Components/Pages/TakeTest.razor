@@ -64,20 +64,27 @@
     else if (showSummary)
     {
         <div class="card">
-            <div class="card-header bg-success text-white">
-                <h2 class="mb-0">Test Complete!</h2>
+            <div class="card-header @(currentAttempt.WasAbandoned ? "bg-warning text-dark" : "bg-success text-white")">
+                <h2 class="mb-0">@(currentAttempt.WasAbandoned ? "Test Abandoned" : "Test Complete!")</h2>
             </div>
             <div class="card-body">
                 <div class="row text-center mb-4">
-                    <div class="col-md-4">
+                    <div class="col">
                         <div class="display-4 text-primary">@currentAttempt.PercentageScore.ToString("F1")%</div>
                         <p class="text-muted">Score</p>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col">
                         <div class="display-4 text-success">@currentAttempt.CorrectAnswers / @currentAttempt.TotalQuestions</div>
                         <p class="text-muted">Correct Answers</p>
                     </div>
-                    <div class="col-md-4">
+                    @if (currentAttempt.SkippedQuestions > 0)
+                    {
+                        <div class="col">
+                            <div class="display-4 text-secondary">@currentAttempt.SkippedQuestions</div>
+                            <p class="text-muted">Skipped</p>
+                        </div>
+                    }
+                    <div class="col">
                         <div class="display-4 text-info">@GetTestDuration()</div>
                         <p class="text-muted">Total Time</p>
                     </div>
@@ -99,7 +106,11 @@
                                 <tr>
                                     <td>@(taq.QuestionOrder + 1)</td>
                                     <td>
-                                        @if (taq.IsCorrect == true)
+                                        @if (taq.IsSkipped)
+                                        {
+                                            <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Skipped</span>
+                                        }
+                                        else if (taq.IsCorrect)
                                         {
                                             <span class="badge bg-success"><i class="bi bi-check-circle"></i> Correct</span>
                                         }
@@ -108,7 +119,7 @@
                                             <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Incorrect</span>
                                         }
                                     </td>
-                                    <td>@taq.TimeSpentSeconds s</td>
+                                    <td>@(taq.IsSkipped ? "—" : $"{taq.TimeSpentSeconds} s")</td>
                                 </tr>
                             }
                         </tbody>
@@ -141,9 +152,12 @@
                             <span class="badge bg-primary me-2">
                                 <i class="bi bi-stopwatch"></i> Session: @sessionTime
                             </span>
-                            <span class="badge bg-info">
+                            <span class="badge bg-info me-2">
                                 <i class="bi bi-clock"></i> Question: @questionTime
                             </span>
+                            <button class="btn btn-outline-danger btn-sm" @onclick="ShowAbandonConfirmation">
+                                <i class="bi bi-x-circle"></i> Abandon
+                            </button>
                         </div>
                     </div>
                     <div class="progress mt-2" style="height: 5px;">
@@ -162,7 +176,7 @@
                     }
 
                     <div class="list-group mb-4">
-                        @{ var testAnswers = currentQuestion.Question.Answers.OrderBy(a => a.DisplayOrder).ToList(); }
+                        @{ var testAnswers = GetShuffledAnswers(currentQuestion.QuestionId, currentQuestion.Question.Answers); }
                         @for (int ai = 0; ai < testAnswers.Count; ai++)
                         {
                             var answer = testAnswers[ai];
@@ -216,11 +230,18 @@
                             @if (!answerChecked)
                             {
                                 <button class="btn btn-info me-2" @onclick="CheckAnswer" disabled="@(!selectedAnswerId.HasValue)">
-                                    <i class="bi bi-check-square"></i> Check Answer
+                                    <i class="bi bi-check-square"></i> Submit & Check
                                 </button>
                             }
-                            <button class="btn btn-primary" @onclick="SubmitAndNext">
-                                @(currentQuestionIndex < currentAttempt.TotalQuestions - 1 ? "Submit & Next" : "Finish Test")
+                            <button class="btn btn-primary" @onclick="SubmitAndNext" disabled="@(!answerChecked && !selectedAnswerId.HasValue)">
+                                @if (answerChecked)
+                                {
+                                    @(currentQuestionIndex < currentAttempt.TotalQuestions - 1 ? "Next" : "Finish Test")
+                                }
+                                else
+                                {
+                                    @(currentQuestionIndex < currentAttempt.TotalQuestions - 1 ? "Submit & Next" : "Finish Test")
+                                }
                                 <i class="bi bi-arrow-right"></i>
                             </button>
                         </div>
@@ -255,6 +276,40 @@
     </div>
 }
 
+@if (showAbandonModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Abandon Test</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => showAbandonModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    @{
+                        int answered = currentAttempt!.TestAttemptQuestions.Count(q => q.SelectedAnswerId != null);
+                        int unanswered = currentAttempt.TotalQuestions - answered;
+                    }
+                    @if (answered == 0)
+                    {
+                        <p>You have not answered any questions. Abandoning will <strong>delete this test attempt entirely</strong>.</p>
+                    }
+                    else
+                    {
+                        <p>You have answered <strong>@answered</strong> of <strong>@currentAttempt.TotalQuestions</strong> questions.</p>
+                        <p>The remaining <strong>@unanswered</strong> unanswered question(s) will be marked as <span class="badge bg-secondary">Skipped</span> and your score will be calculated based on all @currentAttempt.TotalQuestions questions.</p>
+                    }
+                    <p class="mb-0 text-danger"><strong>This action cannot be undone.</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => showAbandonModal = false">Continue Test</button>
+                    <button type="button" class="btn btn-danger" @onclick="AbandonTest">Abandon Test</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<TestCategory>? categories;
     private Dictionary<int, int> questionCounts = new();
@@ -268,6 +323,8 @@
     private bool showSummary = false;
     private bool showFlagModal = false;
     private string? flagComments;
+    private bool showAbandonModal = false;
+    private Dictionary<int, List<Answer>> shuffledAnswers = new();
     
     private string userId = string.Empty;
     private string userEmail = string.Empty;
@@ -361,14 +418,25 @@
     {
         if (!selectedAnswerId.HasValue) return;
 
-        isCorrectAnswer = await TestService.CheckAnswerAsync(GetCurrentQuestion()!.QuestionId, selectedAnswerId.Value);
+        var currentQ = GetCurrentQuestion()!;
+
+        // Save the answer to the database
+        await TestService.SubmitAnswerAsync(
+            currentAttempt!.Id,
+            currentQ.QuestionId,
+            selectedAnswerId.Value,
+            questionSeconds
+        );
+
+        // Show correct/incorrect feedback
+        isCorrectAnswer = await TestService.CheckAnswerAsync(currentQ.QuestionId, selectedAnswerId.Value);
         answerChecked = true;
         feedbackMessage = isCorrectAnswer ? "Correct!" : "Incorrect.";
     }
 
     private async Task SubmitAndNext()
     {
-        if (selectedAnswerId.HasValue)
+        if (!answerChecked && selectedAnswerId.HasValue)
         {
             await TestService.SubmitAnswerAsync(
                 currentAttempt!.Id,
@@ -394,6 +462,15 @@
             currentAttempt = await TestService.CompleteTestAsync(currentAttempt.Id);
             showSummary = true;
         }
+    }
+
+    private List<Answer> GetShuffledAnswers(int questionId, IEnumerable<Answer> answers)
+    {
+        if (!shuffledAnswers.ContainsKey(questionId))
+        {
+            shuffledAnswers[questionId] = answers.OrderBy(_ => Random.Shared.Next()).ToList();
+        }
+        return shuffledAnswers[questionId];
     }
 
     private string GetAnswerClass(int answerId)
@@ -428,6 +505,38 @@
             );
         }
         showFlagModal = false;
+    }
+
+    private void ShowAbandonConfirmation()
+    {
+        showAbandonModal = true;
+    }
+
+    private async Task AbandonTest()
+    {
+        showAbandonModal = false;
+        sessionTimer?.Dispose();
+        questionTimer?.Dispose();
+
+        var result = await TestService.AbandonTestAsync(currentAttempt!.Id);
+
+        if (result == null)
+        {
+            // Test was deleted (no questions answered) -- go back to category selection
+            currentAttempt = null;
+            categories = await CategoryService.GetAllCategoriesAsync();
+            foreach (var category in categories)
+            {
+                questionCounts[category.Id] = await CategoryService.GetQuestionCountAsync(category.Id);
+                lastAttempts[category.Id] = await TestService.GetLastAttemptForCategoryAsync(userId, category.Id);
+            }
+        }
+        else
+        {
+            // Test was completed with skipped questions -- show summary
+            currentAttempt = result;
+            showSummary = true;
+        }
     }
 
     private void ReviewAnswers()

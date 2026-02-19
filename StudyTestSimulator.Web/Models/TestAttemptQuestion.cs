@@ -7,6 +7,7 @@ public class TestAttemptQuestion
     public int QuestionId { get; set; }
     public int? SelectedAnswerId { get; set; }
     public bool IsCorrect { get; set; }
+    public bool IsSkipped { get; set; }
     public DateTime QuestionStartTime { get; set; }
     public DateTime? QuestionEndTime { get; set; }
     public int TimeSpentSeconds { get; set; }
