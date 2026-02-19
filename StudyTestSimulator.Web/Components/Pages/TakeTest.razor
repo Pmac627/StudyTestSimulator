@@ -108,15 +108,15 @@
                                     <td>
                                         @if (taq.IsSkipped)
                                         {
-                                            <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Skipped</span>
+                                            <span class="badge bg-secondary"><i class="bi bi-dash-circle me-1"></i> Skipped</span>
                                         }
                                         else if (taq.IsCorrect)
                                         {
-                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Correct</span>
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Correct</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Incorrect</span>
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i> Incorrect</span>
                                         }
                                     </td>
                                     <td>@(taq.IsSkipped ? "—" : $"{taq.TimeSpentSeconds} s")</td>
@@ -144,15 +144,15 @@
         {
             <div class="card">
                 <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h5 class="mb-0">
                             Question @(currentQuestionIndex + 1) of @currentAttempt.TotalQuestions
                         </h5>
-                        <div>
-                            <span class="badge bg-primary me-2">
+                        <div class="d-flex align-items-center flex-wrap gap-1">
+                            <span class="badge bg-primary">
                                 <i class="bi bi-stopwatch"></i> Session: @sessionTime
                             </span>
-                            <span class="badge bg-info me-2">
+                            <span class="badge bg-info">
                                 <i class="bi bi-clock"></i> Question: @questionTime
                             </span>
                             <button class="btn btn-outline-danger btn-sm" @onclick="ShowAbandonConfirmation">
@@ -220,7 +220,7 @@
                         </div>
                     }
 
-                    <div class="mt-4 d-flex justify-content-between">
+                    <div class="mt-4 d-flex justify-content-between flex-wrap gap-2">
                         <div>
                             <button class="btn btn-warning me-2" @onclick="FlagQuestion">
                                 <i class="bi bi-flag"></i> Flag Question
@@ -233,7 +233,7 @@
                                     <i class="bi bi-check-square"></i> Submit & Check
                                 </button>
                             }
-                            <button class="btn btn-primary" @onclick="SubmitAndNext" disabled="@(!answerChecked && !selectedAnswerId.HasValue)">
+                            <button class="btn btn-primary mt-2 mt-md-0 ms-md-2" @onclick="SubmitAndNext" disabled="@(!answerChecked && !selectedAnswerId.HasValue)">
                                 @if (answerChecked)
                                 {
                                     @(currentQuestionIndex < currentAttempt.TotalQuestions - 1 ? "Next" : "Finish Test")

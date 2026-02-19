@@ -59,10 +59,11 @@
                                     </div>
                                     <div class="col-md-3">
                                         <div class="form-check">
-                                            <input type="checkbox" class="form-check-input"
+                                            <input type="radio" class="form-check-input"
                                                    id="qem_correct_@index"
+                                                   name="qem_correct_answer"
                                                    checked="@editingAnswers[index].IsCorrect"
-                                                   @onchange="(e) => editingAnswers[index].IsCorrect = (bool)(e.Value ?? false)" />
+                                                   @onchange="() => SetCorrectAnswer(index)" />
                                             <label class="form-check-label" for="qem_correct_@index">Correct</label>
                                         </div>
                                     </div>
@@ -210,6 +211,14 @@
         }
     }
 
+    private void SetCorrectAnswer(int index)
+    {
+        for (int i = 0; i < editingAnswers.Count; i++)
+        {
+            editingAnswers[i].IsCorrect = (i == index);
+        }
+    }
+
     private void AddAnswerOption()
     {
         editingAnswers.Add(new Answer { AnswerText = "", DisplayOrder = editingAnswers.Count + 1 });
@@ -244,7 +253,7 @@
 
         if (!validAnswers.Any(a => a.IsCorrect))
         {
-            errorMessage = "At least one answer must be marked as correct.";
+            errorMessage = "One answer must be marked as correct.";
             return;
         }
 

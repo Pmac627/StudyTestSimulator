@@ -36,7 +36,11 @@
         </div>
     </div>
 
-    @if (questions != null && questions.Any())
+    @if (isLoadingQuestions)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else if (questions != null && questions.Any())
     {
         <div class="accordion" id="questionsAccordion">
             @for (int i = 0; i < questions.Count; i++)
@@ -72,19 +76,19 @@
                                             @((char)('A' + ai)). @answer.AnswerText
                                             @if (answer.IsCorrect)
                                             {
-                                                <i class="bi bi-check-circle text-success"></i>
+                                                <i class="bi bi-check-circle text-success ms-1"></i>
                                             }
                                         </span>
                                         @if (!string.IsNullOrEmpty(answer.Explanation))
                                         {
-                                            <br /><small class="text-muted ms-3"><i class="bi bi-info-circle"></i> @answer.Explanation</small>
+                                            <br /><small class="text-muted ms-3"><i class="bi bi-info-circle me-1"></i> @answer.Explanation</small>
                                         }
                                     </li>
                                 }
                             </ul>
                             <p class="text-muted small mt-3 mb-1">
-                                <i class="bi bi-person"></i> Created by: @question.CreatedBy
-                                <span class="ms-3"><i class="bi bi-calendar"></i> @question.CreatedDate.ToLocalTime().ToString("g")</span>
+                                <i class="bi bi-person me-1"></i> Created by: @question.CreatedBy
+                                <span class="ms-3"><i class="bi bi-calendar me-1"></i> @question.CreatedDate.ToLocalTime().ToString("g")</span>
                             </p>
                             <div class="mt-2">
                                 <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditQuestion(question)">
@@ -161,8 +165,16 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseImportModal">Cancel</button>
-                    <button type="button" class="btn btn-primary" @onclick="ImportQuestions" disabled="@(importFile == null)">
-                        Import
+                    <button type="button" class="btn btn-primary" @onclick="ImportQuestions" disabled="@(importFile == null || isImporting)">
+                        @if (isImporting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <text>Importing...</text>
+                        }
+                        else
+                        {
+                            <text>Import</text>
+                        }
                     </button>
                 </div>
             </div>
@@ -176,7 +188,9 @@
     private List<TestCategory>? categories;
     private List<Question>? questions;
     private int selectedCategoryId = 0;
+    private bool isLoadingQuestions = false;
     private bool showImportModal = false;
+    private bool isImporting = false;
     private Microsoft.AspNetCore.Components.Forms.IBrowserFile? importFile;
     private string? importErrorMessage;
     private string? importSuccessMessage;
@@ -197,7 +211,10 @@
     {
         if (selectedCategoryId > 0)
         {
+            isLoadingQuestions = true;
+            StateHasChanged();
             questions = await QuestionService.GetQuestionsByCategoryAsync(selectedCategoryId);
+            isLoadingQuestions = false;
         }
         else
         {
@@ -243,8 +260,9 @@
         importErrorMessage = null;
         importSuccessMessage = null;
 
-        if (importFile == null) return;
+        if (importFile == null || isImporting) return;
 
+        isImporting = true;
         try
         {
             const long maxSize = 100 * 1024 * 1024; // 100MB for large files with base64 images
@@ -260,6 +278,10 @@
         catch (Exception ex)
         {
             importErrorMessage = $"Error importing questions: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
         }
     }
 

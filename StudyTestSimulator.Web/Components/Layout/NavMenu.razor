@@ -1,3 +1,7 @@
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@implements IDisposable
+
 <div class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Study Test Simulator</a>
@@ -43,4 +47,18 @@
 </div>
 
 @code {
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        try { await JS.InvokeVoidAsync("closeNavMenu"); } catch { }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
 }
