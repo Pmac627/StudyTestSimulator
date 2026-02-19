@@ -22,6 +22,7 @@ public class QuestionService : IQuestionService
             .Include(q => q.Flags.Where(f => !f.IsResolved))
             .Where(q => q.TestCategoryId == categoryId)
             .OrderByDescending(q => q.CreatedDate)
+            .ThenBy(q => q.Id)
             .ToListAsync();
     }
 
@@ -60,6 +61,7 @@ public class QuestionService : IQuestionService
         // Update scalar properties on the tracked entity
         existing.QuestionText = question.QuestionText;
         existing.ImageBase64 = question.ImageBase64;
+        existing.ImageUrl = question.ImageUrl;
         existing.Explanation = question.Explanation;
         existing.ModifiedDate = DateTime.UtcNow;
         existing.ModifiedBy = question.ModifiedBy;
@@ -91,14 +93,14 @@ public class QuestionService : IQuestionService
         }
     }
 
-    public async Task<List<Question>> ImportQuestionsFromJsonAsync(string json, int categoryId, string userId, string userEmail)
+    public async Task<List<Question>> ImportQuestionsFromJsonAsync(Stream jsonStream, int categoryId, string userId, string userEmail)
     {
         var options = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         };
 
-        var importData = JsonSerializer.Deserialize<QuestionImportDto>(json, options);
+        var importData = await JsonSerializer.DeserializeAsync<QuestionImportDto>(jsonStream, options);
         if (importData?.Questions == null || !importData.Questions.Any())
         {
             throw new ArgumentException("Invalid JSON format or no questions found.");
@@ -123,6 +125,7 @@ public class QuestionService : IQuestionService
                 TestCategoryId = categoryId,
                 QuestionText = qDto.QuestionText,
                 ImageBase64 = qDto.ImageBase64,
+                ImageUrl = qDto.ImageUrl,
                 Explanation = qDto.Explanation,
                 CreatedBy = userId,
                 CreatedDate = DateTime.UtcNow,

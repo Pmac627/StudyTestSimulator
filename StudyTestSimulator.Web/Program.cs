@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,19 @@ public partial class Program
         var app = builder.Build();
 
         // Configure the HTTP request pipeline
+        // Trust IIS forwarded headers so HTTPS scheme is preserved for auth redirects.
+        // Clear KnownNetworks/KnownProxies so headers are trusted from any source
+        // (required on shared hosting where IIS may not be on loopback).
+        var forwardedHeadersOptions = new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        };
+        
+        forwardedHeadersOptions.KnownIPNetworks.Clear();
+        forwardedHeadersOptions.KnownProxies.Clear();
+
+        app.UseForwardedHeaders(forwardedHeadersOptions);
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");

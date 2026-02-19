@@ -71,20 +71,23 @@
                 <div class="card-body">
                     <h5>@taq.Question.QuestionText</h5>
                     
-                    @if (!string.IsNullOrEmpty(taq.Question.ImageBase64))
+                    @{ var reviewImgSrc = !string.IsNullOrEmpty(taq.Question.ImageUrl) ? taq.Question.ImageUrl : taq.Question.ImageBase64; }
+                    @if (!string.IsNullOrEmpty(reviewImgSrc))
                     {
                         <div class="mb-3">
-                            <img src="@taq.Question.ImageBase64" class="img-fluid" style="max-width: 500px;" alt="Question image" />
+                            <img src="@reviewImgSrc" class="img-fluid" style="max-width: 500px;" alt="Question image" />
                         </div>
                     }
 
                     <div class="list-group mb-3">
-                        @foreach (var answer in taq.Question.Answers.OrderBy(a => a.DisplayOrder))
+                        @{ var reviewAnswers = taq.Question.Answers.OrderBy(a => a.DisplayOrder).ToList(); }
+                        @for (int ai = 0; ai < reviewAnswers.Count; ai++)
                         {
+                            var answer = reviewAnswers[ai];
                             var isSelected = taq.SelectedAnswerId == answer.Id;
                             var isCorrect = answer.IsCorrect;
                             var cssClass = isCorrect ? "list-group-item-success" : (isSelected ? "list-group-item-danger" : "");
-                            
+
                             <div class="list-group-item @cssClass">
                                 @if (isSelected && !isCorrect)
                                 {
@@ -102,7 +105,7 @@
                                 {
                                     <strong class="text-success">Correct answer: </strong>
                                 }
-                                <span>@answer.AnswerText</span>
+                                <span>@((char)('A' + ai)). @answer.AnswerText</span>
                                 
                                 @if (!string.IsNullOrEmpty(answer.Explanation) && (isSelected || isCorrect))
                                 {

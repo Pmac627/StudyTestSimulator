@@ -153,24 +153,28 @@
                 <div class="card-body">
                     <h4 class="mb-4">@currentQuestion.Question.QuestionText</h4>
                     
-                    @if (!string.IsNullOrEmpty(currentQuestion.Question.ImageBase64))
+                    @{ var testImgSrc = !string.IsNullOrEmpty(currentQuestion.Question.ImageUrl) ? currentQuestion.Question.ImageUrl : currentQuestion.Question.ImageBase64; }
+                    @if (!string.IsNullOrEmpty(testImgSrc))
                     {
                         <div class="mb-4">
-                            <img src="@currentQuestion.Question.ImageBase64" class="img-fluid" style="max-width: 600px;" alt="Question image" />
+                            <img src="@testImgSrc" class="img-fluid" style="max-width: 600px;" alt="Question image" />
                         </div>
                     }
 
                     <div class="list-group mb-4">
-                        @foreach (var answer in currentQuestion.Question.Answers.OrderBy(a => a.DisplayOrder))
+                        @{ var testAnswers = currentQuestion.Question.Answers.OrderBy(a => a.DisplayOrder).ToList(); }
+                        @for (int ai = 0; ai < testAnswers.Count; ai++)
                         {
+                            var answer = testAnswers[ai];
+                            var letterPrefix = (char)('A' + ai);
                             <label class="list-group-item list-group-item-action @GetAnswerClass(answer.Id)">
-                                <input type="radio" 
-                                       name="answer" 
-                                       value="@answer.Id" 
+                                <input type="radio"
+                                       name="answer"
+                                       value="@answer.Id"
                                        checked="@(selectedAnswerId == answer.Id)"
                                        @onclick="() => SelectAnswer(answer.Id)"
                                        disabled="@answerChecked" />
-                                <span class="ms-2">@answer.AnswerText</span>
+                                <span class="ms-2">@letterPrefix. @answer.AnswerText</span>
                                 @if (answerChecked && answer.IsCorrect)
                                 {
                                     <i class="bi bi-check-circle-fill text-success float-end"></i>

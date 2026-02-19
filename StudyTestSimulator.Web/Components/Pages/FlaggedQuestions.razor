@@ -73,19 +73,22 @@
                             <h6>Question:</h6>
                             <p>@flag.Question.QuestionText</p>
 
-                            @if (!string.IsNullOrEmpty(flag.Question.ImageBase64))
+                            @{ var flagImgSrc = !string.IsNullOrEmpty(flag.Question.ImageUrl) ? flag.Question.ImageUrl : flag.Question.ImageBase64; }
+                            @if (!string.IsNullOrEmpty(flagImgSrc))
                             {
                                 <div class="mb-3">
-                                    <img src="@flag.Question.ImageBase64" class="img-fluid" style="max-width: 400px;" alt="Question image" />
+                                    <img src="@flagImgSrc" class="img-fluid" style="max-width: 400px;" alt="Question image" />
                                 </div>
                             }
 
                             <h6>Answers:</h6>
                             <ul class="list-group list-group-flush mb-3">
-                                @foreach (var answer in flag.Question.Answers.OrderBy(a => a.DisplayOrder))
+                                @{ var flagAnswers = flag.Question.Answers.OrderBy(a => a.DisplayOrder).ToList(); }
+                                @for (int ai = 0; ai < flagAnswers.Count; ai++)
                                 {
+                                    var answer = flagAnswers[ai];
                                     <li class="list-group-item @(answer.IsCorrect ? "list-group-item-success" : "")">
-                                        @answer.AnswerText
+                                        @((char)('A' + ai)). @answer.AnswerText
                                         @if (answer.IsCorrect)
                                         {
                                             <i class="bi bi-check-circle text-success float-end"></i>

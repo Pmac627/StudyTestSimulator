@@ -43,9 +43,9 @@
             {
                 var question = questions[i];
                 var index = i;
-                <div class="accordion-item">
+                <div class="accordion-item" @key="question.Id">
                     <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse@index">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse@(question.Id)">
                             Question @(index + 1): @(question.QuestionText.Length > 100 ? question.QuestionText.Substring(0, 100) + "..." : question.QuestionText)
                             @if (question.Flags.Any(f => !f.IsResolved))
                             {
@@ -53,20 +53,23 @@
                             }
                         </button>
                     </h2>
-                    <div id="collapse@index" class="accordion-collapse collapse" data-bs-parent="#questionsAccordion">
+                    <div id="collapse@(question.Id)" class="accordion-collapse collapse" data-bs-parent="#questionsAccordion">
                         <div class="accordion-body">
                             <p><strong>Question:</strong> @question.QuestionText</p>
-                            @if (!string.IsNullOrEmpty(question.ImageBase64))
+                            @{ var qImgSrc = !string.IsNullOrEmpty(question.ImageUrl) ? question.ImageUrl : question.ImageBase64; }
+                            @if (!string.IsNullOrEmpty(qImgSrc))
                             {
-                                <img src="@question.ImageBase64" class="img-fluid mb-3" style="max-width: 400px;" alt="Question image" />
+                                <img src="@qImgSrc" class="img-fluid mb-3" style="max-width: 400px;" alt="Question image" />
                             }
                             <p><strong>Answers:</strong></p>
                             <ul class="list-unstyled">
-                                @foreach (var answer in question.Answers.OrderBy(a => a.DisplayOrder))
+                                @{ var orderedAnswers = question.Answers.OrderBy(a => a.DisplayOrder).ToList(); }
+                                @for (int ai = 0; ai < orderedAnswers.Count; ai++)
                                 {
+                                    var answer = orderedAnswers[ai];
                                     <li class="mb-2 @(answer.IsCorrect ? "text-success" : "")">
                                         <span class="@(answer.IsCorrect ? "fw-bold" : "")">
-                                            @answer.AnswerText
+                                            @((char)('A' + ai)). @answer.AnswerText
                                             @if (answer.IsCorrect)
                                             {
                                                 <i class="bi bi-check-circle text-success"></i>
@@ -115,7 +118,7 @@
                     <button type="button" class="btn-close" @onclick="CloseImportModal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Paste your JSON data below. Format:</p>
+                    <p>Upload a JSON file. Expected format:</p>
                     <pre class="bg-light p-2" style="font-size: 0.85em;">
 {
   "questions": [
@@ -123,6 +126,7 @@
       "questionText": "Your question here?",
       "explanation": "Optional explanation",
       "imageBase64": "data:image/png;base64,... (optional)",
+      "imageUrl": "https://example.com/image.png (optional)",
       "answers": [
         {
           "answerText": "Answer 1",
@@ -139,7 +143,13 @@
   ]
 }
                     </pre>
-                    <textarea class="form-control" rows="10" @bind="jsonImportData" placeholder="Paste JSON here..."></textarea>
+                    <InputFile class="form-control" OnChange="HandleImportFileSelected" accept=".json" />
+                    @if (importFile != null)
+                    {
+                        <div class="mt-2 text-muted small">
+                            <i class="bi bi-file-earmark-check"></i> @importFile.Name (@FormatFileSize(importFile.Size))
+                        </div>
+                    }
                     @if (!string.IsNullOrEmpty(importErrorMessage))
                     {
                         <div class="alert alert-danger mt-3">@importErrorMessage</div>
@@ -151,7 +161,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseImportModal">Cancel</button>
-                    <button type="button" class="btn btn-primary" @onclick="ImportQuestions" disabled="@string.IsNullOrWhiteSpace(jsonImportData)">
+                    <button type="button" class="btn btn-primary" @onclick="ImportQuestions" disabled="@(importFile == null)">
                         Import
                     </button>
                 </div>
@@ -175,12 +185,20 @@
                         <textarea class="form-control" rows="3" @bind="editingQuestion!.QuestionText"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Image (optional)</label>
+                        <label class="form-label">Image URL (optional)</label>
+                        <input type="url" class="form-control" @bind="editingQuestion!.ImageUrl"
+                               placeholder="https://example.com/image.png" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Or upload an image (optional)</label>
                         <InputFile class="form-control" OnChange="HandleImageUpload" accept=".jpg,.jpeg,.png,.gif,.webp" />
-                        @if (!string.IsNullOrEmpty(editingQuestion!.ImageBase64))
+                        @{
+                            var editImgSrc = !string.IsNullOrEmpty(editingQuestion!.ImageUrl) ? editingQuestion.ImageUrl : editingQuestion.ImageBase64;
+                        }
+                        @if (!string.IsNullOrEmpty(editImgSrc))
                         {
                             <div class="mt-2">
-                                <img src="@editingQuestion.ImageBase64" class="img-thumbnail" style="max-height: 150px;" alt="Preview" />
+                                <img src="@editImgSrc" class="img-thumbnail" style="max-height: 150px;" alt="Preview" />
                                 <button type="button" class="btn btn-sm btn-outline-danger ms-2" @onclick="RemoveImage">
                                     <i class="bi bi-x"></i> Remove
                                 </button>
@@ -255,7 +273,7 @@
     private List<Question>? questions;
     private int selectedCategoryId = 0;
     private bool showImportModal = false;
-    private string? jsonImportData;
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? importFile;
     private string? importErrorMessage;
     private string? importSuccessMessage;
     private string userId = string.Empty;
@@ -315,6 +333,7 @@
             QuestionText = question.QuestionText,
             Explanation = question.Explanation,
             ImageBase64 = question.ImageBase64,
+            ImageUrl = question.ImageUrl,
             TestCategoryId = question.TestCategoryId,
             CreatedBy = question.CreatedBy,
             CreatedDate = question.CreatedDate,
@@ -375,6 +394,7 @@
             var bytes = memoryStream.ToArray();
             var base64 = Convert.ToBase64String(bytes);
             editingQuestion.ImageBase64 = $"data:{file.ContentType};base64,{base64}";
+            editingQuestion.ImageUrl = null; // Clear URL when uploading a file
             questionErrorMessage = null;
         }
     }
@@ -384,6 +404,7 @@
         if (editingQuestion != null)
         {
             editingQuestion.ImageBase64 = null;
+            editingQuestion.ImageUrl = null;
         }
     }
 
@@ -459,7 +480,7 @@
     private void ShowImportModal()
     {
         showImportModal = true;
-        jsonImportData = null;
+        importFile = null;
         importErrorMessage = null;
         importSuccessMessage = null;
     }
@@ -467,7 +488,14 @@
     private void CloseImportModal()
     {
         showImportModal = false;
-        jsonImportData = null;
+        importFile = null;
+        importErrorMessage = null;
+        importSuccessMessage = null;
+    }
+
+    private void HandleImportFileSelected(InputFileChangeEventArgs e)
+    {
+        importFile = e.File;
         importErrorMessage = null;
         importSuccessMessage = null;
     }
@@ -477,12 +505,16 @@
         importErrorMessage = null;
         importSuccessMessage = null;
 
+        if (importFile == null) return;
+
         try
         {
-            var imported = await QuestionService.ImportQuestionsFromJsonAsync(jsonImportData!, selectedCategoryId, userId, userEmail);
+            const long maxSize = 100 * 1024 * 1024; // 100MB for large files with base64 images
+            using var stream = importFile.OpenReadStream(maxSize);
+            var imported = await QuestionService.ImportQuestionsFromJsonAsync(stream, selectedCategoryId, userId, userEmail);
             importSuccessMessage = $"Successfully imported {imported.Count} question(s)!";
             await LoadQuestions();
-            
+
             // Auto-close after 2 seconds
             await Task.Delay(2000);
             CloseImportModal();
@@ -491,5 +523,12 @@
         {
             importErrorMessage = $"Error importing questions: {ex.Message}";
         }
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 }

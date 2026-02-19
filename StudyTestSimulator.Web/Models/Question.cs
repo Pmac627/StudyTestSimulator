@@ -6,6 +6,7 @@ public class Question
     public int TestCategoryId { get; set; }
     public required string QuestionText { get; set; }
     public string? ImageBase64 { get; set; }
+    public string? ImageUrl { get; set; }
     public string? Explanation { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? ModifiedDate { get; set; }

@@ -9,6 +9,7 @@ public class QuestionDto
 {
     public string QuestionText { get; set; } = string.Empty;
     public string? ImageBase64 { get; set; }
+    public string? ImageUrl { get; set; }
     public string? Explanation { get; set; }
     public List<AnswerDto> Answers { get; set; } = new();
 }
